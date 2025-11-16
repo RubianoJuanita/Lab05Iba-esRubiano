@@ -21,6 +21,9 @@ public class SlowTetrisGUI extends JFrame {
     private JLabel labelScore;
     private JComboBox<String> comboColores;
 
+    private JButton botonIniciarJuego;
+    private boolean juegoIniciado;// controla si el juego está en curso
+
     private int filas;
     private int columnas;
     private boolean tableroVisible;
@@ -38,9 +41,12 @@ public class SlowTetrisGUI extends JFrame {
     private JPanel panelControl;
 
     // Atributos del tablero
+    private int filasInferiores;// para que la parte inferior del panel de juego sea dinamica
+    private int filasDivision;// fila donde está el muro divisorio del panel de juego.
     private static final int FILAS = 20;
     private static final int COLUMNAS = 10;
     private Color[][] tablero;
+    private static final int FILAS_SUPERIORES = 4;
 
     /* ... */
     private SlowTetrisGUI() {
@@ -141,6 +147,7 @@ public class SlowTetrisGUI extends JFrame {
         tableroVisible = false;
         filas = 0;
         columnas = 0;
+        filasDivision = 0;
         tablero = null;
     }
 
@@ -156,6 +163,23 @@ public class SlowTetrisGUI extends JFrame {
         botonConfigurarTablero.setAlignmentX(Component.CENTER_ALIGNMENT);
         botonConfigurarTablero.setMaximumSize(new Dimension(160, 30));
         panelControl.add(botonConfigurarTablero);
+
+        panelControl.add(Box.createVerticalStrut(10));
+
+        // Botón Configurar Tablero
+        botonConfigurarTablero = new JButton("Configurar Tablero");
+        botonConfigurarTablero.setAlignmentX(Component.CENTER_ALIGNMENT);
+        botonConfigurarTablero.setMaximumSize(new Dimension(160, 30));
+        panelControl.add(botonConfigurarTablero);
+
+        panelControl.add(Box.createVerticalStrut(10));
+
+        // Botón Iniciar Juego
+        botonIniciarJuego = new JButton("Iniciar Juego");
+        botonIniciarJuego.setAlignmentX(Component.CENTER_ALIGNMENT);
+        botonIniciarJuego.setMaximumSize(new Dimension(160, 30));
+        botonIniciarJuego.setBackground(Color.GREEN);
+        panelControl.add(botonIniciarJuego);
 
         panelControl.add(Box.createVerticalStrut(10));
 
@@ -280,7 +304,7 @@ public class SlowTetrisGUI extends JFrame {
 
         int anchoCelda = anchoPanel / columnas;
         int altoCelda = altoPanel / filas;
-
+        // dibujamos las celdas
         for (int fila = 0; fila < filas; fila++) {
             for (int col = 0; col < columnas; col++) {
                 int x = col * anchoCelda;
@@ -297,18 +321,31 @@ public class SlowTetrisGUI extends JFrame {
                 }
             }
         }
+        // Dibujamos muro divisorio
+        int yMuro = filasDivision * altoCelda;
+        int alturaMuro = altoCelda / 2; // Muro de medio bloque de altura
+
+        g.setColor(new Color(139, 119, 101)); // Color marrón/café como en el taller
+        g.fillRect(0, yMuro, anchoPanel, alturaMuro);
+
+        // Borde del muro
+        g.setColor(Color.BLACK);
+        g.drawRect(0, yMuro, anchoPanel, alturaMuro);
     }
 
     private void configurarTablero() {
-        JPanel panel = new JPanel(new GridLayout(2, 2, 5, 5));
+        JPanel panel = new JPanel(new GridLayout(3, 2, 5, 5));
 
         JTextField campoFilas = new JTextField("20");
         JTextField campoColumnas = new JTextField("10");
+        JTextField campoDivision = new JTextField("4");
 
-        panel.add(new JLabel("Filas (mínimo 4):"));
+        panel.add(new JLabel("Filas totales (mínimo 4):"));
         panel.add(campoFilas);
         panel.add(new JLabel("Columnas (mínimo 4):"));
         panel.add(campoColumnas);
+        panel.add(new JLabel("Filas zona superior (mín 2):"));
+        panel.add(campoDivision);
 
         int resultado = JOptionPane.showConfirmDialog(
                 this,
@@ -321,7 +358,9 @@ public class SlowTetrisGUI extends JFrame {
             try {
                 int nuevasFilas = Integer.parseInt(campoFilas.getText());
                 int nuevasColumnas = Integer.parseInt(campoColumnas.getText());
+                int nuevaDivision = Integer.parseInt(campoDivision.getText());
 
+                // Validación de dimensiones mínimas
                 if (nuevasFilas < 4 || nuevasColumnas < 4) {
                     JOptionPane.showMessageDialog(
                             this,
@@ -331,8 +370,30 @@ public class SlowTetrisGUI extends JFrame {
                     return;
                 }
 
+                // Validación de la división del panel del juego
+                // Mínimo 2 filas arriba, mínimo 2 filas abajo
+                if (nuevaDivision < 2) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "La zona superior debe tener mínimo 2 filas",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
+                if (nuevaDivision >= nuevasFilas - 1) {
+                    JOptionPane.showMessageDialog(
+                            this,
+                            "La zona inferior debe tener mínimo 2 filas.\nCon " + nuevasFilas
+                                    + " filas totales, la división máxima es " + (nuevasFilas - 2),
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+
                 filas = nuevasFilas;
                 columnas = nuevasColumnas;
+                filasDivision = nuevaDivision;
                 tablero = new Color[filas][columnas];
                 tableroVisible = true;
                 refresh();
@@ -362,24 +423,57 @@ public class SlowTetrisGUI extends JFrame {
         botonAbrir.addActionListener(e -> abrirJuego());
         botonNuevo.addActionListener(e -> nuevoJuego());
         botonConfigurarTablero.addActionListener(e -> configurarTablero());
+        botonIniciarJuego.addActionListener(e -> iniciarJuego());
         botonAumentarFilas.addActionListener(e -> aumentarFilas());
         botonAumentarColumnas.addActionListener(e -> aumentarColumnas());
         botonDisminuirFilas.addActionListener(e -> disminuirFilas());
         botonDisminuirColumnas.addActionListener(e -> disminuirColumnas());
     }
 
+    private void iniciarJuego() {
+        if (!tableroVisible) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Debe configurar el tablero primero",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        juegoIniciado = true;
+        botonIniciarJuego.setEnabled(false);
+        botonIniciarJuego.setText("Juego en Curso");
+        botonConfigurarTablero.setEnabled(false);
+
+        JOptionPane.showMessageDialog(
+                this,
+                "¡Juego iniciado! Las dimensiones del tablero ya no pueden ser modificadas.",
+                "Juego Iniciado",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
     private void nuevoJuego() {
-        // Crear tablero por defecto 20x10
+
         filas = 20;
         columnas = 10;
+        filasDivision = 4; // El muro está después de la fila 4 (zona superior = 4 filas)
         tablero = new Color[filas][columnas];
         tableroVisible = true;
+        juegoIniciado = false;// para cuando el juego esta sin iniciar
         refresh();
         cardLayout.show(panelPrincipal, "juego");
     }
 
     private void aumentarFilas() {
         if (!tableroVisible) {
+            return;
+        }
+        if (juegoIniciado) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Las dimensiones del tablero no pueden ser alteradas en este punto del juego",
+                    "Acción no permitida",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -402,10 +496,30 @@ public class SlowTetrisGUI extends JFrame {
             return;
         }
 
+        if (juegoIniciado) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Las dimensiones del tablero no pueden ser alteradas en este punto del juego",
+                    "Acción no permitida",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Verificar que queden mínimo 4 filas Y que la división del panel de juego siga
+        // siendo válida
+        if (filas <= 4 || filas - 1 <= filasDivision + 1) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "No se puede reducir más. Mínimo 4 filas y debe haber espacio para la zona inferior.",
+                    "Límite alcanzado",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
         filas--;
         Color[][] nuevoTablero = new Color[filas][columnas];
 
-        // Copiar contenido (se pierde la última fila)
+        // se pierde la última fila
         for (int i = 0; i < filas; i++) {
             for (int j = 0; j < columnas; j++) {
                 nuevoTablero[i][j] = tablero[i][j];
@@ -418,6 +532,15 @@ public class SlowTetrisGUI extends JFrame {
 
     private void disminuirColumnas() {
         if (!tableroVisible || columnas <= 4) {
+            return;
+        }
+
+        if (juegoIniciado) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Las dimensiones del tablero no pueden ser alteradas en este punto del juego",
+                    "Acción no permitida",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -437,6 +560,14 @@ public class SlowTetrisGUI extends JFrame {
 
     private void aumentarColumnas() {
         if (!tableroVisible) {
+            return;
+        }
+        if (juegoIniciado) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Las dimensiones del tablero no pueden ser alteradas en este punto del juego",
+                    "Acción no permitida",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
