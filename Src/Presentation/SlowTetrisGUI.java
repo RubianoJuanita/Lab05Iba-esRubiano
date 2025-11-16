@@ -7,7 +7,7 @@ import javax.swing.*;
 public class SlowTetrisGUI extends JFrame {
 
     // Atributos de controles del juego
-    private int hola = 10;
+    private int adios = 10;
     private JButton botonDisminuirFilas;
     private JButton botonDisminuirColumnas;
     private JButton botonRotar;
